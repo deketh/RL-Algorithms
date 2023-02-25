@@ -2,3 +2,5 @@
 .venv/
 *.ipynb
 .saves/
+
+*.DS_Store
