@@ -1,24 +1,24 @@
 from torch import nn
 
 class ContinuousPPOAgent(nn.Module):
-    def __init__(self, num_inputs=2, num_actions=1):
+    def __init__(self, num_inputs, num_actions):
         super(ContinuousPPOAgent, self).__init__()
 
         # Architecture
-        self.common1 = nn.Linear(num_inputs, 64)
-        self.common2 = nn.Linear(64, 32)
+        self.common1 = nn.Linear(num_inputs, 32)
+        self.common2 = nn.Linear(32, 16)
         
-        self.means = nn.Linear(32, num_actions)
-        self.devs = nn.Linear(32, num_actions)
+        self.means = nn.Linear(16, num_actions)
+        self.devs = nn.Linear(16, num_actions)
 
-        self.critic = nn.Linear(32, 1)
+        self.critic = nn.Linear(16, 1)
 
     def forward(self, x):
         x = nn.functional.relu(self.common1(x))
         x = nn.functional.relu(self.common2(x))
 
         actor_means = nn.functional.tanh(self.means(x))
-        actor_devs = nn.functional.leaky_relu(self.devs(x), negative_slope=0.2)
+        actor_devs = nn.functional.sigmoid(self.devs(x))
 
         critic = self.critic(x)
 
