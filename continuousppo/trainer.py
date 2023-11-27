@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from torch import Tensor, optim, from_numpy, clamp, minimum, log, tensor, sum, stack, mean, no_grad, mean, empty, float64, randperm, cat
+from torch import Tensor, optim, from_numpy, clamp, minimum, stack, mean, mean, empty, randperm
 from torch.distributions import Normal
 from torch.nn.functional import mse_loss
 import sys
 from numpy import ndarray
 
-from continuous_ppo.model import ContinuousPPOModel
+from continuousppo.model import ContinuousPPOModel
 
 EPSILON = sys.float_info.epsilon
 

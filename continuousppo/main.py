@@ -1,8 +1,8 @@
 import gymnasium as gym
 from torch import from_numpy, no_grad
-from continuous_ppo.model import ContinuousPPOModel
+from continuousppo.model import ContinuousPPOModel
 
-from continuous_ppo.trainer import ContinuousPPOTrainer
+from continuousppo.trainer import ContinuousPPOTrainer
 
 env = gym.make('LunarLander-v2', continuous=True) # render_mode='human'
 
