@@ -62,6 +62,7 @@ def env_step(state: Any, buffer: ContinuousPPOBuffer, trainer: ContinuousPPOTrai
 
 for i in range(TRAIN_TIMES):
   done = True
+  buffer.initialize()
 
   # Populate buffer
   with no_grad():
@@ -81,6 +82,3 @@ for i in range(TRAIN_TIMES):
     last_critic=last_critic, 
     normalize=True
   )
-
-  # buffer.initialize()
-
