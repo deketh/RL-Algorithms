@@ -1,26 +1,36 @@
-import gymnasium as gym
-from torch import from_numpy, no_grad
-from continuousppo.model import ContinuousPPOModel
+# Initialization
 
+import gym
+from torch import from_numpy, no_grad
+from continuousppo.buffer import ContinuousPPOBuffer
+from continuousppo.model import ContinuousPPOModel
 from continuousppo.trainer import ContinuousPPOTrainer
 
 env = gym.make('LunarLander-v2', continuous=True) # render_mode='human'
 
-BUFFER_SIZE = 10000
+BUFFER_SIZE = 2048
 
 NUM_INPUTS = 8
 NUM_ACTIONS = 2
 
 train_reward_history = []
 model = ContinuousPPOModel(num_inputs=NUM_INPUTS, num_actions=NUM_ACTIONS)
-trainer = ContinuousPPOTrainer(
-    model = model,
-    buffer_size=BUFFER_SIZE,
-    num_inputs=NUM_INPUTS,
-    num_actions=NUM_ACTIONS
-  )
 
+trainer = ContinuousPPOTrainer(
+  model = model,
+  num_inputs=NUM_INPUTS,
+  num_actions=NUM_ACTIONS
+)
+
+buffer = ContinuousPPOBuffer(
+  size=BUFFER_SIZE,
+  num_inputs=NUM_INPUTS,
+  num_actions=NUM_ACTIONS
+)
+
+# main.py
 import builtins
+from typing import Any
 
 trainer.epsilon = 0.2
 trainer.entropy_coeff = 0.0007
@@ -31,40 +41,46 @@ trainer.set_means_lr(0.00025)
 trainer.set_devs_lr(0.00025)
 trainer.set_critic_lr(0.00025)
 
-trainer.actor_losses = []
-trainer.critic_losses = []
+BATCH_SIZE = 512
+EPOCHS = 3
+TRAIN_TIMES = 29*6
 
-BATCH_SIZE = 1000
-EPOCHS = 10
-TRAIN_TIMES = 32*5
-episode_rewards = []
+def env_step(state: Any, buffer: ContinuousPPOBuffer, trainer: ContinuousPPOTrainer):
+  actor, critic = trainer.model.predict(from_numpy(state))
+  actions = trainer.model.sample_actions(actor)
+  
+  next_state, reward, terminated, truncated, _ = env.step(actions.numpy())
+
+  means, devs = actor
+  done = terminated or truncated
+
+  buffer.append(state, next_state, means, devs, actions, critic, reward, done)
+
+  return next_state, done
+
+# Training loop
 
 for i in range(TRAIN_TIMES):
   done = True
 
   # Populate buffer
   with no_grad():
-    for i in range(trainer.buffer_size):
+    for i in range(buffer.size):
+
       if done:
         state, _ = env.reset()
 
-      actor, critic = trainer._predict(model, from_numpy(state))
-      actions, actor_log_probs = trainer._sample_actions(actor)
+      state, done = env_step(state, buffer, trainer)
 
-      next_state, reward, terminated, truncated, _ = env.step(actions.numpy())
-      
-      means, devs = actor
-      done = terminated or truncated
+    _, last_critic = trainer.model.predict(from_numpy(state), actor=False) # Inside no grad
+  
+  trainer.train(
+    buffer=buffer,
+    batch_size=BATCH_SIZE,
+    epochs=EPOCHS,
+    last_critic=last_critic, 
+    normalize=True
+  )
 
-      trainer.buffer_append(state, next_state, means, devs, actions, critic, reward, done)
-      episode_rewards.append(reward)
+  # buffer.initialize()
 
-      state = next_state
-
-    _, last_critic = trainer._predict(model, from_numpy(state), actor=False) # Inside no grad
-    state, _ = env.reset()
-
-
-  train_reward_history.append(builtins.sum(episode_rewards)/len(episode_rewards))
-
-  trainer.train(batch_size=BATCH_SIZE, epochs=EPOCHS, last_critic=last_critic, normalize=True)
